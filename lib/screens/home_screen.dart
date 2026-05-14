@@ -6,8 +6,12 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Text("Home Screen"),
+      appBar: AppBar(title: Text("Expense Tracker"), 
+      centerTitle: true,
+      ),
+      body: Center(child: Text("Welcome to Expense Tracker", 
+      style: TextStyle(),
+      ),
       ),
     );
   }
