@@ -10,9 +10,19 @@ class HomeScreen extends StatelessWidget {
       centerTitle: true,
       ),
       body: Center(child: Text("Welcome to Expense Tracker", 
-      style: TextStyle(),
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
       ),
       ),
+      ),
+      floatingActionButton: FloatingActionButton(
+  onPressed: () {
+
+  },
+
+  child: Icon(Icons.add),
+),
     );
   }
 }
