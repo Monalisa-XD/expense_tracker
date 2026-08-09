@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'app.dart';
+import 'features/repositories/providers.dart';
 
-void main() {
-  runApp(const ExpenseTrackerApp());
-}
-class ExpenseTrackerApp extends StatelessWidget {
-  const ExpenseTrackerApp({super.key});
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final sharedPreferences = await SharedPreferences.getInstance();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp (
-      home: const HomeScreen(),
-    );
-  }
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const ExpenseTrackerApp(),
+    ),
+  );
 }
