@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/repositories/providers.dart';
+import 'features/security/presentation/app_lock_screen.dart';
 
 class ExpenseTrackerApp extends ConsumerWidget {
   const ExpenseTrackerApp({super.key});
@@ -22,6 +23,9 @@ class ExpenseTrackerApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme(),
       themeMode: mode,
       routerConfig: AppRouter.router,
+      builder: (context, child) {
+        return AppLockScreen(child: child ?? const SizedBox());
+      },
     );
   }
 }

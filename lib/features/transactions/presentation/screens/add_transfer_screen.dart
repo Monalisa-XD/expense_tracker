@@ -21,6 +21,7 @@ class _AddTransferScreenState extends ConsumerState<AddTransferScreen> {
   AccountEntity? _fromAccount;
   AccountEntity? _toAccount;
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -65,7 +66,7 @@ class _AddTransferScreenState extends ConsumerState<AddTransferScreen> {
       appBar: AppBar(
         title: Text(widget.editTransfer != null ? 'Edit Transfer' : 'Transfer Money'),
       ),
-      body: state.isLoading
+      body: state.isLoading || _isSaving
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -163,14 +164,16 @@ class _AddTransferScreenState extends ConsumerState<AddTransferScreen> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
+
     if (!_formKey.currentState!.validate() || _fromAccount == null || _toAccount == null) {
       return;
     }
 
     if (_fromAccount!.id == _toAccount!.id) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot transfer money to the same account.')),
+        const SnackBar(content: Text('You cannot transfer money to the same account. Please select a valid destination account.')),
       );
       return;
     }
@@ -178,27 +181,42 @@ class _AddTransferScreenState extends ConsumerState<AddTransferScreen> {
     final amt = double.parse(_amountController.text);
     final desc = _descriptionController.text.isNotEmpty ? _descriptionController.text : 'Transfer to ${_toAccount!.name}';
 
-    final notifier = ref.read(accountStateNotifierProvider.notifier);
+    setState(() => _isSaving = true);
 
-    if (widget.editTransfer != null) {
-      notifier.updateTransfer(
-        transferId: widget.editTransfer!.transferId!,
-        fromAccountId: _fromAccount!.id,
-        toAccountId: _toAccount!.id,
-        amount: amt,
-        date: _date,
-        description: desc,
-      );
-    } else {
-      notifier.createTransfer(
-        fromAccountId: _fromAccount!.id,
-        toAccountId: _toAccount!.id,
-        amount: amt,
-        date: _date,
-        description: desc,
-      );
+    try {
+      final notifier = ref.read(accountStateNotifierProvider.notifier);
+
+      if (widget.editTransfer != null) {
+        await notifier.updateTransfer(
+          transferId: widget.editTransfer!.transferId!,
+          fromAccountId: _fromAccount!.id,
+          toAccountId: _toAccount!.id,
+          amount: amt,
+          date: _date,
+          description: desc,
+        );
+      } else {
+        await notifier.createTransfer(
+          fromAccountId: _fromAccount!.id,
+          toAccountId: _toAccount!.id,
+          amount: amt,
+          date: _date,
+          description: desc,
+        );
+      }
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to save transfer. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-
-    Navigator.pop(context);
   }
 }

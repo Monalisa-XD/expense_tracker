@@ -10,6 +10,7 @@ class LocalStorageService {
   static const String _keyOnboarded = 'onboarded';
   static const String _keyUserToken = 'user_token';
   static const String _keyUserData = 'user_data';
+  static const String _keyFavoriteMerchants = 'favorite_merchants';
 
   // Theme mode: light, dark, system
   Future<void> setThemeMode(String value) async {
@@ -50,5 +51,13 @@ class LocalStorageService {
   Future<void> clearAuth() async {
     await _prefs.remove(_keyUserToken);
     await _prefs.remove(_keyUserData);
+  }
+
+  Future<void> saveFavoriteMerchants(List<String> merchantIds) async {
+    await _prefs.setStringList(_keyFavoriteMerchants, merchantIds);
+  }
+
+  List<String> getFavoriteMerchants() {
+    return _prefs.getStringList(_keyFavoriteMerchants) ?? [];
   }
 }

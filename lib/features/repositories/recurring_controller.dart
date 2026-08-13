@@ -104,8 +104,17 @@ class RecurringController extends StateNotifier<RecurringState> {
         case RecurringFrequency.monthly:
           factor = 1.0;
           break;
+        case RecurringFrequency.quarterly:
+          factor = 1.0 / 3.0;
+          break;
+        case RecurringFrequency.halfYearly:
+          factor = 1.0 / 6.0;
+          break;
         case RecurringFrequency.yearly:
           factor = 1.0 / 12.0;
+          break;
+        case RecurringFrequency.custom:
+          factor = 1.0;
           break;
       }
       if (r.type == TransactionType.expense) {

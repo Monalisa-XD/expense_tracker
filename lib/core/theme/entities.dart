@@ -22,6 +22,8 @@ class CategoryEntity {
   final String icon; // Icon name reference or key
   final int colorValue; // ARGB Hex representation
   final TransactionType type;
+  final int sortOrder;
+  final bool isActive;
   final bool isDefault;
 
   CategoryEntity({
@@ -30,6 +32,8 @@ class CategoryEntity {
     required this.icon,
     required this.colorValue,
     required this.type,
+    this.sortOrder = 0,
+    this.isActive = true,
     this.isDefault = false,
   });
 
@@ -40,6 +44,8 @@ class CategoryEntity {
       'icon': icon,
       'colorValue': colorValue,
       'type': type.name,
+      'sortOrder': sortOrder,
+      'isActive': isActive,
       'isDefault': isDefault,
     };
   }
@@ -51,7 +57,53 @@ class CategoryEntity {
       icon: map['icon'] ?? '',
       colorValue: map['colorValue'] ?? 0,
       type: TransactionType.values.firstWhere((e) => e.name == map['type'], orElse: () => TransactionType.expense),
+      sortOrder: map['sortOrder'] ?? 0,
+      isActive: map['isActive'] ?? true,
       isDefault: map['isDefault'] ?? false,
+    );
+  }
+}
+
+class MerchantEntity {
+  final String id;
+  final String categoryId;
+  final String name;
+  final String? brandKey;
+  final String? iconAsset;
+  final bool isDefault;
+  final bool isActive;
+
+  MerchantEntity({
+    required this.id,
+    required this.categoryId,
+    required this.name,
+    this.brandKey,
+    this.iconAsset,
+    this.isDefault = false,
+    this.isActive = true,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'categoryId': categoryId,
+      'name': name,
+      'brandKey': brandKey,
+      'iconAsset': iconAsset,
+      'isDefault': isDefault,
+      'isActive': isActive,
+    };
+  }
+
+  factory MerchantEntity.fromMap(Map<String, dynamic> map) {
+    return MerchantEntity(
+      id: map['id'] ?? '',
+      categoryId: map['categoryId'] ?? '',
+      name: map['name'] ?? '',
+      brandKey: map['brandKey'],
+      iconAsset: map['iconAsset'],
+      isDefault: map['isDefault'] ?? false,
+      isActive: map['isActive'] ?? true,
     );
   }
 }
@@ -61,6 +113,7 @@ class TransactionEntity {
   final double amount;
   final TransactionType type;
   final String categoryId;
+  final String? subcategoryId;
   final String accountId;
   final String title;
   final String? description;
@@ -72,12 +125,17 @@ class TransactionEntity {
   final String? transferId;
   final String? fromAccountId;
   final String? toAccountId;
+  final String? merchantId;
+  final String? brandKey;
+  final String? merchantName;
+  final String? receiptPath;
 
   TransactionEntity({
     required this.id,
     required this.amount,
     required this.type,
     required this.categoryId,
+    this.subcategoryId,
     required this.accountId,
     required this.title,
     this.description,
@@ -89,6 +147,10 @@ class TransactionEntity {
     this.transferId,
     this.fromAccountId,
     this.toAccountId,
+    this.merchantId,
+    this.brandKey,
+    this.merchantName,
+    this.receiptPath,
   });
 
   TransactionEntity copyWith({
@@ -96,6 +158,7 @@ class TransactionEntity {
     double? amount,
     TransactionType? type,
     String? categoryId,
+    String? Function()? subcategoryId,
     String? accountId,
     String? title,
     String? description,
@@ -107,12 +170,17 @@ class TransactionEntity {
     String? transferId,
     String? fromAccountId,
     String? toAccountId,
+    String? Function()? merchantId,
+    String? Function()? brandKey,
+    String? Function()? merchantName,
+    String? Function()? receiptPath,
   }) {
     return TransactionEntity(
       id: id ?? this.id,
       amount: amount ?? this.amount,
       type: type ?? this.type,
       categoryId: categoryId ?? this.categoryId,
+      subcategoryId: subcategoryId != null ? subcategoryId() : this.subcategoryId,
       accountId: accountId ?? this.accountId,
       title: title ?? this.title,
       description: description ?? this.description,
@@ -124,6 +192,10 @@ class TransactionEntity {
       transferId: transferId ?? this.transferId,
       fromAccountId: fromAccountId ?? this.fromAccountId,
       toAccountId: toAccountId ?? this.toAccountId,
+      merchantId: merchantId != null ? merchantId() : this.merchantId,
+      brandKey: brandKey != null ? brandKey() : this.brandKey,
+      merchantName: merchantName != null ? merchantName() : this.merchantName,
+      receiptPath: receiptPath != null ? receiptPath() : this.receiptPath,
     );
   }
 
@@ -133,6 +205,7 @@ class TransactionEntity {
       'amount': amount,
       'type': type.name,
       'categoryId': categoryId,
+      'subcategoryId': subcategoryId,
       'accountId': accountId,
       'title': title,
       'description': description,
@@ -144,6 +217,10 @@ class TransactionEntity {
       'transferId': transferId,
       'fromAccountId': fromAccountId,
       'toAccountId': toAccountId,
+      'merchantId': merchantId,
+      'brandKey': brandKey,
+      'merchantName': merchantName,
+      'receiptPath': receiptPath,
     };
   }
 
@@ -153,6 +230,7 @@ class TransactionEntity {
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       type: TransactionType.values.firstWhere((e) => e.name == map['type'], orElse: () => TransactionType.expense),
       categoryId: map['categoryId'] ?? '',
+      subcategoryId: map['subcategoryId'],
       accountId: map['accountId'] ?? '',
       title: map['title'] ?? '',
       description: map['description'],
@@ -164,6 +242,10 @@ class TransactionEntity {
       transferId: map['transferId'],
       fromAccountId: map['fromAccountId'],
       toAccountId: map['toAccountId'],
+      merchantId: map['merchantId'],
+      brandKey: map['brandKey'],
+      merchantName: map['merchantName'],
+      receiptPath: map['receiptPath'],
     );
   }
 }
@@ -332,7 +414,7 @@ class AccountEntity {
   }
 }
 
-enum RecurringFrequency { daily, weekly, monthly, yearly }
+enum RecurringFrequency { daily, weekly, monthly, quarterly, halfYearly, yearly, custom }
 
 class RecurringTransactionEntity {
   final String id;
@@ -354,6 +436,14 @@ class RecurringTransactionEntity {
   final bool autoGenerate;
   final DateTime createdAt;
   final List<String> skippedOccurrences; // Dates as ISO strings
+  final String? subcategoryId;
+  final String? merchantId;
+  final String? merchantName;
+  final String? brandKey;
+  final String? recurringType; // subscription, rent, emi, insurance, utilities, bills, membership, salary, recurringIncome, other
+  final DateTime? trialEndDate;
+  final int? reminderDays;
+  final bool? isSubscription;
 
   RecurringTransactionEntity({
     required this.id,
@@ -375,6 +465,14 @@ class RecurringTransactionEntity {
     this.autoGenerate = true,
     required this.createdAt,
     this.skippedOccurrences = const [],
+    this.subcategoryId,
+    this.merchantId,
+    this.merchantName,
+    this.brandKey,
+    this.recurringType = 'other',
+    this.trialEndDate,
+    this.reminderDays = 1,
+    this.isSubscription = false,
   });
 
   RecurringTransactionEntity copyWith({
@@ -397,6 +495,14 @@ class RecurringTransactionEntity {
     bool? autoGenerate,
     DateTime? createdAt,
     List<String>? skippedOccurrences,
+    String? Function()? subcategoryId,
+    String? Function()? merchantId,
+    String? Function()? merchantName,
+    String? Function()? brandKey,
+    String? recurringType,
+    DateTime? Function()? trialEndDate,
+    int? reminderDays,
+    bool? isSubscription,
   }) {
     return RecurringTransactionEntity(
       id: id ?? this.id,
@@ -418,6 +524,14 @@ class RecurringTransactionEntity {
       autoGenerate: autoGenerate ?? this.autoGenerate,
       createdAt: createdAt ?? this.createdAt,
       skippedOccurrences: skippedOccurrences ?? this.skippedOccurrences,
+      subcategoryId: subcategoryId != null ? subcategoryId() : this.subcategoryId,
+      merchantId: merchantId != null ? merchantId() : this.merchantId,
+      merchantName: merchantName != null ? merchantName() : this.merchantName,
+      brandKey: brandKey != null ? brandKey() : this.brandKey,
+      recurringType: recurringType ?? this.recurringType,
+      trialEndDate: trialEndDate != null ? trialEndDate() : this.trialEndDate,
+      reminderDays: reminderDays ?? this.reminderDays,
+      isSubscription: isSubscription ?? this.isSubscription,
     );
   }
 
@@ -442,6 +556,14 @@ class RecurringTransactionEntity {
       'autoGenerate': autoGenerate,
       'createdAt': createdAt.toIso8601String(),
       'skippedOccurrences': skippedOccurrences,
+      'subcategoryId': subcategoryId,
+      'merchantId': merchantId,
+      'merchantName': merchantName,
+      'brandKey': brandKey,
+      'recurringType': recurringType,
+      'trialEndDate': trialEndDate?.toIso8601String(),
+      'reminderDays': reminderDays,
+      'isSubscription': isSubscription,
     };
   }
 
@@ -466,6 +588,14 @@ class RecurringTransactionEntity {
       autoGenerate: map['autoGenerate'] ?? true,
       createdAt: DateTime.parse(map['createdAt']),
       skippedOccurrences: List<String>.from(map['skippedOccurrences'] ?? []),
+      subcategoryId: map['subcategoryId'],
+      merchantId: map['merchantId'],
+      merchantName: map['merchantName'],
+      brandKey: map['brandKey'],
+      recurringType: map['recurringType'] ?? 'other',
+      trialEndDate: map['trialEndDate'] != null ? DateTime.parse(map['trialEndDate']) : null,
+      reminderDays: map['reminderDays'] as int? ?? 1,
+      isSubscription: map['isSubscription'] as bool? ?? false,
     );
   }
 }
@@ -494,34 +624,194 @@ class RecurringExpenseEntity {
   });
 }
 
+enum NotificationType {
+  budgetWarning,
+  budgetCritical,
+  budgetExceeded,
+  recurringUpcoming,
+  recurringDue,
+  recurringPayment,
+  lowBalance,
+  largeExpense,
+  weeklySummary,
+  monthlySummary,
+  accountUpdate,
+  system
+}
+
+enum NotificationPriority {
+  low,
+  normal,
+  high,
+  critical
+}
+
 class NotificationEntity {
   final String id;
+  final NotificationType type;
   final String title;
-  final String description;
-  final DateTime date;
+  final String message;
+  final DateTime createdAt;
   final bool isRead;
+  final NotificationPriority priority;
+  final String? relatedEntityId;
+  final String? relatedEntityType;
+  final DateTime? scheduledFor;
+  final Map<String, dynamic> metadata;
 
   NotificationEntity({
     required this.id,
+    required this.type,
     required this.title,
-    required this.description,
-    required this.date,
+    required this.message,
+    required this.createdAt,
     this.isRead = false,
+    this.priority = NotificationPriority.normal,
+    this.relatedEntityId,
+    this.relatedEntityType,
+    this.scheduledFor,
+    this.metadata = const {},
   });
 
   NotificationEntity copyWith({
     String? id,
+    NotificationType? type,
     String? title,
-    String? description,
-    DateTime? date,
+    String? message,
+    DateTime? createdAt,
     bool? isRead,
+    NotificationPriority? priority,
+    String? Function()? relatedEntityId,
+    String? Function()? relatedEntityType,
+    DateTime? Function()? scheduledFor,
+    Map<String, dynamic>? metadata,
   }) {
     return NotificationEntity(
       id: id ?? this.id,
+      type: type ?? this.type,
       title: title ?? this.title,
-      description: description ?? this.description,
-      date: date ?? this.date,
+      message: message ?? this.message,
+      createdAt: createdAt ?? this.createdAt,
       isRead: isRead ?? this.isRead,
+      priority: priority ?? this.priority,
+      relatedEntityId: relatedEntityId != null ? relatedEntityId() : this.relatedEntityId,
+      relatedEntityType: relatedEntityType != null ? relatedEntityType() : this.relatedEntityType,
+      scheduledFor: scheduledFor != null ? scheduledFor() : this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'type': type.name,
+      'title': title,
+      'message': message,
+      'createdAt': createdAt.toIso8601String(),
+      'isRead': isRead,
+      'priority': priority.name,
+      'relatedEntityId': relatedEntityId,
+      'relatedEntityType': relatedEntityType,
+      'scheduledFor': scheduledFor?.toIso8601String(),
+      'metadata': metadata,
+    };
+  }
+
+  factory NotificationEntity.fromMap(Map<String, dynamic> map) {
+    return NotificationEntity(
+      id: map['id'] ?? '',
+      type: NotificationType.values.firstWhere((e) => e.name == map['type'], orElse: () => NotificationType.system),
+      title: map['title'] ?? '',
+      message: map['message'] ?? '',
+      createdAt: DateTime.parse(map['createdAt']),
+      isRead: map['isRead'] ?? false,
+      priority: NotificationPriority.values.firstWhere((e) => e.name == map['priority'], orElse: () => NotificationPriority.normal),
+      relatedEntityId: map['relatedEntityId'],
+      relatedEntityType: map['relatedEntityType'],
+      scheduledFor: map['scheduledFor'] != null ? DateTime.parse(map['scheduledFor']) : null,
+      metadata: Map<String, dynamic>.from(map['metadata'] ?? {}),
+    );
+  }
+}
+
+class NotificationSettingsEntity {
+  final bool masterNotifications;
+  final bool budgetAlerts;
+  final bool recurringPaymentAlerts;
+  final bool lowBalanceAlerts;
+  final bool largeExpenseAlerts;
+  final bool weeklySummary;
+  final bool monthlySummary;
+  final double lowBalanceThreshold;
+  final double largeExpenseThreshold;
+  final double budgetWarningThreshold;
+
+  NotificationSettingsEntity({
+    this.masterNotifications = true,
+    this.budgetAlerts = true,
+    this.recurringPaymentAlerts = true,
+    this.lowBalanceAlerts = true,
+    this.largeExpenseAlerts = true,
+    this.weeklySummary = true,
+    this.monthlySummary = true,
+    this.lowBalanceThreshold = 3000.0,
+    this.largeExpenseThreshold = 10000.0,
+    this.budgetWarningThreshold = 90.0,
+  });
+
+  NotificationSettingsEntity copyWith({
+    bool? masterNotifications,
+    bool? budgetAlerts,
+    bool? recurringPaymentAlerts,
+    bool? lowBalanceAlerts,
+    bool? largeExpenseAlerts,
+    bool? weeklySummary,
+    bool? monthlySummary,
+    double? lowBalanceThreshold,
+    double? largeExpenseThreshold,
+    double? budgetWarningThreshold,
+  }) {
+    return NotificationSettingsEntity(
+      masterNotifications: masterNotifications ?? this.masterNotifications,
+      budgetAlerts: budgetAlerts ?? this.budgetAlerts,
+      recurringPaymentAlerts: recurringPaymentAlerts ?? this.recurringPaymentAlerts,
+      lowBalanceAlerts: lowBalanceAlerts ?? this.lowBalanceAlerts,
+      largeExpenseAlerts: largeExpenseAlerts ?? this.largeExpenseAlerts,
+      weeklySummary: weeklySummary ?? this.weeklySummary,
+      monthlySummary: monthlySummary ?? this.monthlySummary,
+      lowBalanceThreshold: lowBalanceThreshold ?? this.lowBalanceThreshold,
+      largeExpenseThreshold: largeExpenseThreshold ?? this.largeExpenseThreshold,
+      budgetWarningThreshold: budgetWarningThreshold ?? this.budgetWarningThreshold,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'masterNotifications': masterNotifications,
+      'budgetAlerts': budgetAlerts,
+      'recurringPaymentAlerts': recurringPaymentAlerts,
+      'lowBalanceAlerts': lowBalanceAlerts,
+      'largeExpenseAlerts': largeExpenseAlerts,
+      'weeklySummary': weeklySummary,
+      'monthlySummary': monthlySummary,
+      'lowBalanceThreshold': lowBalanceThreshold,
+      'largeExpenseThreshold': largeExpenseThreshold,
+      'budgetWarningThreshold': budgetWarningThreshold,
+    };
+  }
+
+  factory NotificationSettingsEntity.fromMap(Map<String, dynamic> map) {
+    return NotificationSettingsEntity(
+      masterNotifications: map['masterNotifications'] ?? true,
+      budgetAlerts: map['budgetAlerts'] ?? true,
+      recurringPaymentAlerts: map['recurringPaymentAlerts'] ?? true,
+      lowBalanceAlerts: map['lowBalanceAlerts'] ?? true,
+      largeExpenseAlerts: map['largeExpenseAlerts'] ?? true,
+      weeklySummary: map['weeklySummary'] ?? true,
+      monthlySummary: map['monthlySummary'] ?? true,
+      lowBalanceThreshold: (map['lowBalanceThreshold'] as num?)?.toDouble() ?? 3000.0,
+      largeExpenseThreshold: (map['largeExpenseThreshold'] as num?)?.toDouble() ?? 10000.0,
+      budgetWarningThreshold: (map['budgetWarningThreshold'] as num?)?.toDouble() ?? 90.0,
     );
   }
 }

@@ -5,8 +5,8 @@ import '../../../../core/widgets/transaction_tile.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../repositories/controllers.dart';
 import 'transaction_detail_screen.dart';
-import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
+import 'multi_step_expense_flow.dart';
 
 class TransactionsTab extends ConsumerStatefulWidget {
   const TransactionsTab({super.key});
@@ -159,7 +159,7 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
     if (tx.type == TransactionType.expense) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => AddExpenseScreen(editTransaction: tx)),
+        MaterialPageRoute(builder: (context) => MultiStepExpenseFlow(editTransaction: tx)),
       );
     } else {
       Navigator.push(

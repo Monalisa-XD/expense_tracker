@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/entities.dart';
+import '../../core/theme/brand_registry.dart';
+import '../../core/theme/category_registry.dart';
+import '../../core/theme/merchant_registry.dart';
 import 'usecases.dart';
 import 'providers.dart';
 import 'analytics_usecases.dart';
 import 'budget_usecases.dart';
+import 'account_controller.dart';
 
 // Transaction filter state class
 class TransactionFilterState {
@@ -92,6 +96,7 @@ class TransactionFilterController extends StateNotifier<TransactionFilterState> 
 final filteredTransactionsProvider = Provider<AsyncValue<List<TransactionEntity>>>((ref) {
   final txsVal = ref.watch(transactionControllerProvider);
   final filter = ref.watch(transactionFilterControllerProvider);
+  final accounts = ref.watch(accountStateNotifierProvider).accounts;
 
   return txsVal.when(
     data: (list) {
@@ -101,8 +106,31 @@ final filteredTransactionsProvider = Provider<AsyncValue<List<TransactionEntity>
         if (query.isNotEmpty) {
           final matchesTitle = tx.title.toLowerCase().contains(query);
           final matchesDesc = tx.description?.toLowerCase().contains(query) ?? false;
-          final matchesNotes = tx.categoryId.toLowerCase().contains(query); // category matches
-          if (!matchesTitle && !matchesDesc && !matchesNotes) {
+          final matchesMerchant = tx.merchantName?.toLowerCase().contains(query) ?? false;
+          final matchesSubcatId = tx.subcategoryId?.toLowerCase().contains(query) ?? false;
+
+          // Find resolved category name matching query
+          final catDef = CategoryRegistry.categories.firstWhere(
+            (c) => c.id == tx.categoryId,
+            orElse: () => CategoryDefinition(id: '', name: '', icon: '', colorValue: 0, subcategories: []),
+          );
+          final matchesCatName = catDef.name.toLowerCase().contains(query);
+
+          // Find resolved subcategory name matching query
+          final subcatDef = catDef.subcategories.firstWhere(
+            (s) => s.id == tx.subcategoryId,
+            orElse: () => SubcategoryDefinition(id: '', name: ''),
+          );
+          final matchesSubcatName = subcatDef.name.toLowerCase().contains(query);
+
+          // Match account name
+          final matchingAcc = accounts.firstWhere(
+            (a) => a.id == tx.accountId,
+            orElse: () => AccountEntity(id: '', name: '', balance: 0.0, type: PaymentMethod.upi, initialBalance: 0.0),
+          );
+          final matchesAccountName = matchingAcc.name.toLowerCase().contains(query);
+
+          if (!matchesTitle && !matchesDesc && !matchesMerchant && !matchesSubcatId && !matchesCatName && !matchesSubcatName && !matchesAccountName) {
             return false;
           }
         }
@@ -171,7 +199,97 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     state = const AsyncValue.loading();
     try {
       final list = await _getTx();
-      state = AsyncValue.data(list);
+      final migratedList = list.map((tx) {
+        // Migration: If categoryId is old or brandKey is not set yet, attempt matching
+        bool needsMigration = false;
+        String newCategoryId = tx.categoryId;
+        
+        // Map old category IDs to new ones
+        if (tx.categoryId == 'cat_food') { newCategoryId = 'food_dining'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_transport') { newCategoryId = 'transport'; needsMigration = true; }
+        else if (tx.categoryId == 'ride_transport') { newCategoryId = 'transport'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_shopping') { newCategoryId = 'shopping'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_bills') { newCategoryId = 'bills_recharge'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_entertainment') { newCategoryId = 'entertainment'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_health') { newCategoryId = 'health'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_education') { newCategoryId = 'education'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_travel') { newCategoryId = 'travel'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_groceries') { newCategoryId = 'groceries'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_salary') { newCategoryId = 'salary_income'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_freelance') { newCategoryId = 'salary_income'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_other_income') { newCategoryId = 'salary_income'; needsMigration = true; }
+        else if (tx.categoryId == 'cat_other_expense') { newCategoryId = 'other'; needsMigration = true; }
+
+        String? newSubcategoryId = tx.subcategoryId;
+        String? newMerchantId = tx.merchantId;
+        String? newBrandKey = tx.brandKey;
+        String? newMerchantName = tx.merchantName;
+
+        if (tx.brandKey == null || tx.brandKey == 'unknown' || tx.subcategoryId == null) {
+          final detect = MerchantRegistry.detectMerchant(tx.title);
+          if (detect != null) {
+            newCategoryId = detect.categoryId;
+            newSubcategoryId = detect.subcategoryId;
+            newMerchantId = detect.id;
+            newBrandKey = detect.brandKey;
+            newMerchantName = detect.name;
+            needsMigration = true;
+          } else {
+            // Check if title maps to a standard merchant name directly (e.g. Starbucks)
+            final mClean = tx.title.trim().toLowerCase();
+            if (mClean == 'house rent' || mClean == 'room rent') {
+              newCategoryId = 'housing';
+              newSubcategoryId = 'house_rent';
+              newMerchantId = mClean == 'house rent' ? 'house_rent' : 'room_rent';
+              newBrandKey = newMerchantId;
+              newMerchantName = tx.title;
+              needsMigration = true;
+            } else if (tx.subcategoryId == null) {
+              // Set default subcategory depending on category if merchant is unknown
+              if (newCategoryId == 'food_dining') newSubcategoryId = 'other_food';
+              else if (newCategoryId == 'shopping') newSubcategoryId = 'shopping_other';
+              else if (newCategoryId == 'groceries') newSubcategoryId = 'grocery_other';
+              else if (newCategoryId == 'transport') newSubcategoryId = 'transport_other';
+              else if (newCategoryId == 'bills_recharge') newSubcategoryId = 'recharge_other';
+              else if (newCategoryId == 'housing') newSubcategoryId = 'housing_other';
+              else if (newCategoryId == 'entertainment') newSubcategoryId = 'entertainment_other';
+              else if (newCategoryId == 'banking_finance') newSubcategoryId = 'finance_other';
+              else if (newCategoryId == 'health') newSubcategoryId = 'health_other';
+              else if (newCategoryId == 'education') newSubcategoryId = 'education_other';
+              else if (newCategoryId == 'travel') newSubcategoryId = 'travel_other';
+              else if (newCategoryId == 'utilities') newSubcategoryId = 'utilities_other';
+              else if (newCategoryId == 'transfer') newSubcategoryId = 'bank_transfer';
+              else if (newCategoryId == 'salary_income') newSubcategoryId = 'salary';
+              else newSubcategoryId = 'other_expense';
+              needsMigration = true;
+            }
+          }
+        }
+
+        // Safeguard: Make sure categoryId is mapped correctly to a known category from CategoryRegistry
+        if (newCategoryId == 'cat_food') newCategoryId = 'food_dining';
+        if (newCategoryId == 'cat_transport' || newCategoryId == 'ride_transport') newCategoryId = 'transport';
+        if (newCategoryId == 'cat_shopping') newCategoryId = 'shopping';
+        if (newCategoryId == 'cat_bills') newCategoryId = 'bills_recharge';
+        if (newCategoryId == 'cat_entertainment') newCategoryId = 'entertainment';
+        if (newCategoryId == 'cat_groceries') newCategoryId = 'groceries';
+
+        if (needsMigration || newCategoryId != tx.categoryId || newSubcategoryId != tx.subcategoryId) {
+          final updatedTx = tx.copyWith(
+            categoryId: newCategoryId,
+            subcategoryId: () => newSubcategoryId,
+            merchantId: () => newMerchantId,
+            brandKey: () => newBrandKey,
+            merchantName: () => newMerchantName,
+          );
+          // Async update in persistence, do not wait blocking the stream load
+          _updateTx(updatedTx);
+          return updatedTx;
+        }
+        return tx;
+      }).toList();
+
+      state = AsyncValue.data(migratedList);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

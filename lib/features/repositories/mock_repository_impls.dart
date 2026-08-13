@@ -135,3 +135,32 @@ class MockRecurringRepository implements RecurringRepository {
   @override
   Future<void> deleteRecurringTransaction(String id) => _dataSource.deleteRecurringTransaction(id);
 }
+
+class MockNotificationRepository implements NotificationRepository {
+  final NotificationDataSource _dataSource;
+  MockNotificationRepository(this._dataSource);
+
+  @override
+  Future<List<NotificationEntity>> getNotifications() => _dataSource.getNotifications();
+
+  @override
+  Future<void> createNotification(NotificationEntity notification) => _dataSource.createNotification(notification);
+
+  @override
+  Future<void> markNotificationRead(String id) => _dataSource.markNotificationRead(id);
+
+  @override
+  Future<void> markAllNotificationsRead() => _dataSource.markAllNotificationsRead();
+
+  @override
+  Future<void> deleteNotification(String id) => _dataSource.deleteNotification(id);
+
+  @override
+  Future<void> clearReadNotifications() => _dataSource.clearReadNotifications();
+
+  @override
+  Future<NotificationSettingsEntity> getNotificationSettings() => _dataSource.getNotificationSettings();
+
+  @override
+  Future<void> updateNotificationSettings(NotificationSettingsEntity settings) => _dataSource.updateNotificationSettings(settings);
+}

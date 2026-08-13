@@ -81,6 +81,11 @@ final recurringDataSourceProvider = Provider<RecurringDataSource>((ref) {
   return MockRecurringDataSource(prefs);
 });
 
+final notificationDataSourceProvider = Provider<NotificationDataSource>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return MockNotificationDataSource(prefs);
+});
+
 // Repositories
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final storage = ref.watch(localStorageServiceProvider);
@@ -95,6 +100,11 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 final budgetRepositoryProvider = Provider<BudgetRepository>((ref) {
   final ds = ref.watch(budgetDataSourceProvider);
   return MockMockBudgetRepository(ds);
+});
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  final ds = ref.watch(notificationDataSourceProvider);
+  return MockNotificationRepository(ds);
 });
 
 class MockMockBudgetRepository extends MockBudgetRepository {
@@ -114,6 +124,57 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 final recurringRepositoryProvider = Provider<RecurringRepository>((ref) {
   final ds = ref.watch(recurringDataSourceProvider);
   return MockRecurringRepository(ds);
+});
+
+// Notification Use Cases
+final getNotificationsUseCaseProvider = Provider<GetNotificationsUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return GetNotificationsUseCase(repo);
+});
+
+final getUnreadNotificationsUseCaseProvider = Provider<GetUnreadNotificationsUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return GetUnreadNotificationsUseCase(repo);
+});
+
+final createNotificationUseCaseProvider = Provider<CreateNotificationUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return CreateNotificationUseCase(repo);
+});
+
+final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return MarkNotificationReadUseCase(repo);
+});
+
+final markAllNotificationsReadUseCaseProvider = Provider<MarkAllNotificationsReadUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return MarkAllNotificationsReadUseCase(repo);
+});
+
+final deleteNotificationUseCaseProvider = Provider<DeleteNotificationUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return DeleteNotificationUseCase(repo);
+});
+
+final clearReadNotificationsUseCaseProvider = Provider<ClearReadNotificationsUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return ClearReadNotificationsUseCase(repo);
+});
+
+final getUnreadNotificationCountUseCaseProvider = Provider<GetUnreadNotificationCountUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return GetUnreadNotificationCountUseCase(repo);
+});
+
+final getNotificationSettingsUseCaseProvider = Provider<GetNotificationSettingsUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return GetNotificationSettingsUseCase(repo);
+});
+
+final updateNotificationSettingsUseCaseProvider = Provider<UpdateNotificationSettingsUseCase>((ref) {
+  final repo = ref.watch(notificationRepositoryProvider);
+  return UpdateNotificationSettingsUseCase(repo);
 });
 
 // Use Cases

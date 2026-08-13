@@ -72,6 +72,42 @@ class CategorySpendingDetailsScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                const Text('Merchant Breakdown', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Builder(
+                      builder: (context) {
+                        // Aggregate spending by merchant
+                        final Map<String, double> merchantSpend = {};
+                        for (var tx in catTxs) {
+                          final mName = tx.merchantName ?? 'Other / Custom';
+                          merchantSpend[mName] = (merchantSpend[mName] ?? 0.0) + tx.amount;
+                        }
+                        // Sort by spend descending
+                        final sortedMerchants = merchantSpend.entries.toList()
+                          ..sort((a, b) => b.value.compareTo(a.value));
+
+                        return Column(
+                          children: sortedMerchants.map((entry) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                  Text(CurrencyUtils.format(entry.value), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text('Recent Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 ListView.builder(

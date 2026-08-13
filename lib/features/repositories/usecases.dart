@@ -253,6 +253,72 @@ class SkipNextOccurrenceUseCase {
   }
 }
 
+class GetNotificationsUseCase {
+  final NotificationRepository _repo;
+  GetNotificationsUseCase(this._repo);
+  Future<List<NotificationEntity>> call() => _repo.getNotifications();
+}
+
+class GetUnreadNotificationsUseCase {
+  final NotificationRepository _repo;
+  GetUnreadNotificationsUseCase(this._repo);
+  Future<List<NotificationEntity>> call() async {
+    final list = await _repo.getNotifications();
+    return list.where((n) => !n.isRead).toList();
+  }
+}
+
+class CreateNotificationUseCase {
+  final NotificationRepository _repo;
+  CreateNotificationUseCase(this._repo);
+  Future<void> call(NotificationEntity notification) => _repo.createNotification(notification);
+}
+
+class MarkNotificationReadUseCase {
+  final NotificationRepository _repo;
+  MarkNotificationReadUseCase(this._repo);
+  Future<void> call(String id) => _repo.markNotificationRead(id);
+}
+
+class MarkAllNotificationsReadUseCase {
+  final NotificationRepository _repo;
+  MarkAllNotificationsReadUseCase(this._repo);
+  Future<void> call() => _repo.markAllNotificationsRead();
+}
+
+class DeleteNotificationUseCase {
+  final NotificationRepository _repo;
+  DeleteNotificationUseCase(this._repo);
+  Future<void> call(String id) => _repo.deleteNotification(id);
+}
+
+class ClearReadNotificationsUseCase {
+  final NotificationRepository _repo;
+  ClearReadNotificationsUseCase(this._repo);
+  Future<void> call() => _repo.clearReadNotifications();
+}
+
+class GetUnreadNotificationCountUseCase {
+  final NotificationRepository _repo;
+  GetUnreadNotificationCountUseCase(this._repo);
+  Future<int> call() async {
+    final list = await _repo.getNotifications();
+    return list.where((n) => !n.isRead).length;
+  }
+}
+
+class GetNotificationSettingsUseCase {
+  final NotificationRepository _repo;
+  GetNotificationSettingsUseCase(this._repo);
+  Future<NotificationSettingsEntity> call() => _repo.getNotificationSettings();
+}
+
+class UpdateNotificationSettingsUseCase {
+  final NotificationRepository _repo;
+  UpdateNotificationSettingsUseCase(this._repo);
+  Future<void> call(NotificationSettingsEntity settings) => _repo.updateNotificationSettings(settings);
+}
+
 abstract class TransactionRepository {
   Future<List<TransactionEntity>> getTransactions();
   Future<void> addTransaction(TransactionEntity tx);
@@ -287,6 +353,17 @@ abstract class RecurringRepository {
   Future<void> createRecurringTransaction(RecurringTransactionEntity rec);
   Future<void> updateRecurringTransaction(RecurringTransactionEntity rec);
   Future<void> deleteRecurringTransaction(String id);
+}
+
+abstract class NotificationRepository {
+  Future<List<NotificationEntity>> getNotifications();
+  Future<void> createNotification(NotificationEntity notification);
+  Future<void> markNotificationRead(String id);
+  Future<void> markAllNotificationsRead();
+  Future<void> deleteNotification(String id);
+  Future<void> clearReadNotifications();
+  Future<NotificationSettingsEntity> getNotificationSettings();
+  Future<void> updateNotificationSettings(NotificationSettingsEntity settings);
 }
 
 abstract class AuthRepository {

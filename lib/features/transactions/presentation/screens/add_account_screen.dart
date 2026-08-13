@@ -187,35 +187,53 @@ class _AddAccountScreenState extends ConsumerState<AddAccountScreen> {
     );
   }
 
-  void _save() {
+  bool _isSaving = false;
+
+  void _save() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
 
-    final notifier = ref.read(accountStateNotifierProvider.notifier);
+    setState(() => _isSaving = true);
 
-    if (widget.editAccount != null) {
-      final updated = widget.editAccount!.copyWith(
-        name: _nameController.text,
-        type: _selectedType,
-        icon: _selectedIcon,
-        color: _selectedColor,
-        isDefault: _isDefault,
-        updatedAt: DateTime.now(),
-      );
-      notifier.updateAccount(updated);
-    } else {
-      final created = AccountEntity(
-        id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameController.text,
-        balance: double.parse(_initialBalanceController.text),
-        type: _selectedType,
-        initialBalance: double.parse(_initialBalanceController.text),
-        icon: _selectedIcon,
-        color: _selectedColor,
-        isDefault: _isDefault,
-      );
-      notifier.createAccount(created);
+    try {
+      final notifier = ref.read(accountStateNotifierProvider.notifier);
+
+      if (widget.editAccount != null) {
+        final updated = widget.editAccount!.copyWith(
+          name: _nameController.text,
+          type: _selectedType,
+          icon: _selectedIcon,
+          color: _selectedColor,
+          isDefault: _isDefault,
+          updatedAt: DateTime.now(),
+        );
+        await notifier.updateAccount(updated);
+      } else {
+        final created = AccountEntity(
+          id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
+          name: _nameController.text,
+          balance: double.parse(_initialBalanceController.text),
+          type: _selectedType,
+          initialBalance: double.parse(_initialBalanceController.text),
+          icon: _selectedIcon,
+          color: _selectedColor,
+          isDefault: _isDefault,
+        );
+        await notifier.createAccount(created);
+      }
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to save account. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-
-    Navigator.pop(context);
   }
 }

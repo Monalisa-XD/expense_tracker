@@ -3,6 +3,10 @@ import '../../../../core/theme/entities.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/date_utils.dart';
 
+import '../../../../core/utils/app_icon_resolver.dart';
+import '../../../../core/theme/brand_registry.dart';
+import '../../../../core/theme/category_registry.dart';
+
 class TransactionDetailScreen extends StatelessWidget {
   final TransactionEntity transaction;
   final CategoryEntity? category;
@@ -21,6 +25,23 @@ class TransactionDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isExpense = transaction.type == TransactionType.expense;
     final color = isExpense ? Colors.red : Colors.green;
+
+    final resolvedCategoryName = (() {
+      if (category != null && category!.name != 'Unknown') {
+        return category!.name;
+      }
+      final matchingCat = BrandRegistry.categories.firstWhere(
+        (c) => c.id == transaction.categoryId,
+        orElse: () => CategoryEntity(
+          id: 'other',
+          name: 'Other',
+          icon: 'widgets',
+          colorValue: 0xFF78716C,
+          type: transaction.type,
+        ),
+      );
+      return matchingCat.name;
+    })();
 
     return Scaffold(
       appBar: AppBar(
@@ -71,6 +92,15 @@ class TransactionDetailScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             Center(
+              child: AppIconResolver.resolveTransactionIcon(
+                categoryId: transaction.categoryId,
+                brandKey: transaction.brandKey,
+                merchantName: transaction.merchantName ?? transaction.title,
+                size: 80,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
               child: Text(
                 transaction.type == TransactionType.expense ? 'EXPENSE' : 'INCOME',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
@@ -91,7 +121,23 @@ class TransactionDetailScreen extends StatelessWidget {
                   children: [
                     _buildDetailRow(context, 'Title', transaction.title),
                     const Divider(),
-                    _buildDetailRow(context, 'Category', category?.name ?? 'Uncategorized'),
+                    _buildDetailRow(context, 'Category', resolvedCategoryName),
+                    const Divider(),
+                    _buildDetailRow(
+                      context,
+                      'Subcategory',
+                      (() {
+                        final catDef = CategoryRegistry.categories.firstWhere(
+                          (c) => c.id == transaction.categoryId,
+                          orElse: () => CategoryDefinition(id: '', name: '', icon: '', colorValue: 0, subcategories: []),
+                        );
+                        final subcatDef = catDef.subcategories.firstWhere(
+                          (s) => s.id == transaction.subcategoryId,
+                          orElse: () => SubcategoryDefinition(id: '', name: 'None'),
+                        );
+                        return subcatDef.name;
+                      })(),
+                    ),
                     const Divider(),
                     _buildDetailRow(context, 'Date', DateUtilsHelper.formatDate(transaction.date)),
                     const Divider(),
@@ -102,6 +148,34 @@ class TransactionDetailScreen extends StatelessWidget {
                     _buildDetailRow(context, 'Description', transaction.description ?? 'None'),
                     const Divider(),
                     _buildDetailRow(context, 'Created At', DateUtilsHelper.formatDate(transaction.createdAt)),
+                    if (transaction.receiptPath != null) ...[
+                      const Divider(),
+                      _buildDetailRow(context, 'Receipt', 'Attached'),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey.withOpacity(0.05),
+                        ),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.insert_drive_file, size: 36, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                transaction.receiptPath!.split('/').last,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

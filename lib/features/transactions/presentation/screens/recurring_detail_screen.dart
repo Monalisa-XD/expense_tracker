@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/entities.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../../../core/utils/app_icon_resolver.dart';
 import '../../../../core/widgets/transaction_tile.dart';
 import '../../../repositories/recurring_controller.dart';
 import '../../../repositories/controllers.dart';
+import '../../../repositories/account_controller.dart';
 import 'add_recurring_screen.dart';
 
 class RecurringDetailScreen extends ConsumerWidget {
@@ -13,20 +15,65 @@ class RecurringDetailScreen extends ConsumerWidget {
 
   const RecurringDetailScreen({super.key, required this.recurring});
 
+  double _getNormalizedMonthlyCost(RecurringTransactionEntity item) {
+    switch (item.frequency) {
+      case RecurringFrequency.daily:
+        return item.amount * 30.0;
+      case RecurringFrequency.weekly:
+        return item.amount * 4.33;
+      case RecurringFrequency.monthly:
+        return item.amount;
+      case RecurringFrequency.quarterly:
+        return item.amount / 3.0;
+      case RecurringFrequency.halfYearly:
+        return item.amount / 6.0;
+      case RecurringFrequency.yearly:
+        return item.amount / 12.0;
+      case RecurringFrequency.custom:
+        return item.amount;
+    }
+  }
+
+  String _getCountdownText(DateTime date) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final due = DateUtils.dateOnly(date);
+    final diff = due.difference(today).inDays;
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    if (diff < 0) return 'Overdue by ${diff.abs()} days';
+    return 'Due in $diff days';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catsState = ref.watch(categoryControllerProvider);
-    final accountsState = ref.watch(accountControllerProvider);
+    final accountsState = ref.watch(accountStateNotifierProvider);
     final txsState = ref.watch(transactionControllerProvider);
 
     final cat = (catsState.value ?? []).firstWhere((c) => c.id == recurring.categoryId,
         orElse: () => CategoryEntity(id: '?', name: 'Other', icon: 'widgets', colorValue: 0xFF64748B, type: recurring.type));
-    final account = (accountsState.value ?? []).firstWhere((a) => a.id == recurring.accountId,
+    final account = accountsState.activeAccounts.firstWhere((a) => a.id == recurring.accountId,
         orElse: () => AccountEntity(id: '?', name: 'Other Account', balance: 0.0, type: PaymentMethod.bank));
 
     final generatedTxs = (txsState.value ?? [])
         .where((t) => t.recurringTransactionId == recurring.id)
         .toList();
+
+    final isLowBalance = account.balance < recurring.amount && recurring.type == TransactionType.expense;
+
+    final monthly = _getNormalizedMonthlyCost(recurring);
+    final yearly = monthly * 12.0;
+
+    String statusText = 'Active';
+    if (!recurring.isActive) {
+      statusText = 'Completed / Cancelled';
+    } else if (recurring.isPaused) {
+      statusText = 'Paused';
+    }
+
+    final trialEnd = recurring.trialEndDate;
+    final inTrial = trialEnd != null && DateTime.now().isBefore(trialEnd);
+    final trialDaysRemaining = trialEnd != null ? trialEnd.difference(DateTime.now()).inDays : 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -50,12 +97,19 @@ class RecurringDetailScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          // Subtitle Title / Amount
+          // Visual title logo card
           Center(
             child: Column(
               children: [
-                Text(recurring.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                AppIconResolver.resolveTransactionIcon(
+                  categoryId: recurring.categoryId,
+                  brandKey: recurring.brandKey,
+                  merchantName: recurring.merchantName ?? recurring.title,
+                  size: 72,
+                ),
+                const SizedBox(height: 12),
+                Text(recurring.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
                 Text(
                   '${recurring.type == TransactionType.expense ? "-" : "+"}${CurrencyUtils.format(recurring.amount)}',
                   style: TextStyle(
@@ -64,14 +118,62 @@ class RecurringDetailScreen extends ConsumerWidget {
                     color: recurring.type == TransactionType.expense ? Colors.red : Colors.green,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Chip(label: Text(recurring.frequency.name.toUpperCase())),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Chip(label: Text(recurring.frequency.name.toUpperCase())),
+                    if (recurring.recurringType != null) ...[
+                      const SizedBox(width: 8),
+                      Chip(
+                        label: Text(recurring.recurringType!.toUpperCase()),
+                        backgroundColor: Colors.teal[900],
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Metadata properties
+          if (isLowBalance)
+            Card(
+              color: Colors.redAccent.withOpacity(0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Colors.redAccent, width: 0.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  children: const [
+                    Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '⚠ Insufficient balance: Your HDFC account balance is less than this payment amount.',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          if (inTrial)
+            Card(
+              color: Colors.blue.withOpacity(0.08),
+              child: ListTile(
+                leading: const Icon(Icons.timer_outlined, color: Colors.blue),
+                title: const Text('Free Trial Period Active'),
+                subtitle: Text('Trial ends in $trialDaysRemaining days (${DateUtilsHelper.formatDate(trialEnd)})'),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          // Metadata Card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -85,18 +187,20 @@ class RecurringDetailScreen extends ConsumerWidget {
                   const Divider(),
                   _buildDetailRow('Next Payment', DateUtilsHelper.formatDate(recurring.nextOccurrenceDate), Icons.calendar_today),
                   const Divider(),
-                  _buildDetailRow('Start Date', DateUtilsHelper.formatDate(recurring.startDate), Icons.date_range),
+                  _buildDetailRow('Countdown', _getCountdownText(recurring.nextOccurrenceDate), Icons.hourglass_empty),
                   const Divider(),
-                  _buildDetailRow('End Date', recurring.endDate == null ? 'No End Date' : DateUtilsHelper.formatDate(recurring.endDate!), Icons.event_busy),
+                  _buildDetailRow('Monthly Normalized Cost', CurrencyUtils.format(monthly), Icons.trending_up),
                   const Divider(),
-                  _buildDetailRow('Status', recurring.isPaused ? 'Paused' : (recurring.isActive ? 'Active' : 'Completed'), Icons.info_outline),
+                  _buildDetailRow('Yearly Cost Estimate', CurrencyUtils.format(yearly), Icons.date_range),
+                  const Divider(),
+                  _buildDetailRow('Status', statusText, Icons.info_outline),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
-          // Actions box
+          // Actions
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -122,15 +226,22 @@ class RecurringDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.skip_next),
                 label: const Text('Skip Next'),
               ),
+              if (recurring.isActive)
+                ElevatedButton.icon(
+                  onPressed: () => _confirmCancel(context, ref),
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Cancel Sub'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red[900]),
+                ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Generated Transactions history
-          const Text('Generated Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          // Generated Transactions list
+          const Text('Payment History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           if (generatedTxs.isEmpty)
-            const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('No transactions generated yet.')))
+            const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('No historical payments found.')))
           else
             ...generatedTxs.map((t) => TransactionTile(transaction: t, category: cat)),
         ],
@@ -172,6 +283,30 @@ class RecurringDetailScreen extends ConsumerWidget {
     if (confirm == true && context.mounted) {
       ref.read(recurringControllerProvider.notifier).deleteRecurring(recurring.id);
       Navigator.pop(context); // Go back to tab list
+    }
+  }
+
+  void _confirmCancel(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Subscription?'),
+        content: const Text('This will cancel the subscription. Historic transactions remain.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel Sub', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      ref.read(recurringControllerProvider.notifier).updateRecurring(recurring.copyWith(
+            isActive: false,
+          ));
+      Navigator.pop(context);
     }
   }
 }

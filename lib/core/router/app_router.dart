@@ -5,6 +5,8 @@ import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/register_screen.dart';
 import '../../features/authentication/presentation/screens/forgot_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/transactions/presentation/screens/notifications_screen.dart';
+import '../../features/transactions/presentation/screens/notification_settings_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -35,6 +37,14 @@ class AppRouter {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
     ],
   );

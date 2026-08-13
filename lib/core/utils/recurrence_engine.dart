@@ -22,6 +22,32 @@ class RecurrenceEngine {
           day = maxDays;
         }
         return DateTime(year, month, day, current.hour, current.minute, current.second);
+      case RecurringFrequency.quarterly:
+        int year = current.year;
+        int month = current.month + 3;
+        if (month > 12) {
+          month = month - 12;
+          year++;
+        }
+        int day = current.day;
+        int maxDays = _daysInMonth(year, month);
+        if (day > maxDays) {
+          day = maxDays;
+        }
+        return DateTime(year, month, day, current.hour, current.minute, current.second);
+      case RecurringFrequency.halfYearly:
+        int year = current.year;
+        int month = current.month + 6;
+        if (month > 12) {
+          month = month - 12;
+          year++;
+        }
+        int day = current.day;
+        int maxDays = _daysInMonth(year, month);
+        if (day > maxDays) {
+          day = maxDays;
+        }
+        return DateTime(year, month, day, current.hour, current.minute, current.second);
       case RecurringFrequency.yearly:
         int year = current.year + 1;
         int month = current.month;
@@ -31,6 +57,9 @@ class RecurrenceEngine {
           day = maxDays;
         }
         return DateTime(year, month, day, current.hour, current.minute, current.second);
+      case RecurringFrequency.custom:
+        // Default custom to 30 days
+        return current.add(const Duration(days: 30));
     }
   }
 
